@@ -1,0 +1,91 @@
+<template>
+    <ZegoUIKitPrebuiltCall :appID="appID" :callID="callID" :appSign="appSign" :userID="userID" :userName="userName"
+        :config="config">
+        <template #avatarView="{ userInfo }">
+            <image mode="aspectFit" :style="{ width: 130, height: 130, borderRadius: 65 }" :src="getAvatar(userInfo)" />
+        </template>
+        <template #audioVideoForeground="{ userInfo }">
+            <view class="userinfo-container">
+                <text :style="{ color: getColorByUser(userInfo) }">{{ userInfo.userName }}</text>
+            </view>
+        </template>
+        <template #prebuiltForegroundView>
+            <image class="forground-image" :src="imgSrc" />
+        </template>
+    </ZegoUIKitPrebuiltCall>
+</template>
+<script lang="ts" setup>
+import { ref } from "vue"
+import keyCenter from "@/pages/KeyCenter";
+import ZegoUIKitPrebuiltCall from "@/uni_modules/zego-PrebuiltCall/components/ZegoUIKitPrebuiltCall.nvue"
+import { ZegoUIKitPrebuiltCallConfig } from "@/uni_modules/zego-PrebuiltCall"
+import AvatarImg from '@/static/avatar/avatar-01.jpeg'
+import PrairieImg from '@/static/pic.jpeg'
+import { ZegoUIKitUser } from "@/uni_modules/zego-UIKitCore";
+
+const imgSrc = ref(PrairieImg)
+
+const appID = ref(keyCenter.getAppID());
+const appSign = ref(keyCenter.getAppSign());
+const userID = ref(keyCenter.getUserID());
+const userName = ref(keyCenter.getUserID() + '_Nick');
+const callID = ref(keyCenter.getCallID());
+const config: ZegoUIKitPrebuiltCallConfig = {
+    ...ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall(),
+    onHangUp: () => {
+        // 挂断后返回上一页
+        uni.navigateBack()
+    },
+    onNetworkStatusChange: (res) => {
+        if (res.isConnected) {
+            uni.showToast({
+                title: '网络已恢复',
+                icon: 'none'
+            })
+        } else {
+            uni.showToast({
+                title: '网络已断开',
+                icon: 'none'
+            })
+        }
+    },
+};
+
+function getAvatar(userInfo: ZegoUIKitUser) {
+    // 根据 userInfo.userID 判断应该返回的头像地址, 这里简单处理
+    return AvatarImg
+}
+function getColorByUser(userInfo: ZegoUIKitUser) {
+    if (userInfo.userID == 'user1') {
+        return 'green'
+    } else {
+        return 'red'
+    }
+}
+</script>
+
+<style scoped>
+.forground-image {
+    margin-top: 200rpx;
+    width: 100rpx;
+    height: 100rpx;
+}
+
+.userinfo-container {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    background-color: #2A2A2A;
+
+    opacity: 0.7;
+    position: absolute;
+    padding-left: 5rpx;
+    padding-right: 5rpx;
+    padding-bottom: 3rpx;
+    padding-top: 3rpx;
+    border-radius: 6rpx;
+    top: 5rpx;
+    left: 5rpx;
+
+}
+</style>

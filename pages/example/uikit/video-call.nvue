@@ -1,0 +1,42 @@
+<template>
+    <ZegoUIKitPrebuiltCall :appID="appID" :callID="callID" :appSign="appSign" :userID="userID" :userName="userName"
+        :config="config">
+    </ZegoUIKitPrebuiltCall>
+</template>
+<script lang="ts" setup>
+import { ref } from "vue"
+import keyCenter from "@/pages/KeyCenter";
+import ZegoUIKitPrebuiltCall from "@/uni_modules/zego-PrebuiltCall/components/ZegoUIKitPrebuiltCall.nvue"
+import { ZegoUIKitPrebuiltCallConfig } from "@/uni_modules/zego-PrebuiltCall"
+import { ZegoLayoutMode, ZegoViewPosition } from "@/uni_modules/zego-UIKitCore";
+
+const appID = ref(keyCenter.getAppID());
+const appSign = ref(keyCenter.getAppSign());
+const userID = ref(keyCenter.getUserID());
+const userName = ref(keyCenter.getUserID() + '_Nick');
+const callID = ref(keyCenter.getCallID());
+
+const config: ZegoUIKitPrebuiltCallConfig = {
+    ...ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall(), // 预设配置
+    onHangUp: () => {
+        // 挂断后返回上一页
+        uni.navigateBack()
+    },
+    onNetworkStatusChange: (res) => {
+        if (res.isConnected) {
+            uni.showToast({
+                title: '网络已恢复',
+                icon: 'none'
+            })
+        } else {
+            uni.showToast({
+                title: '网络已断开',
+                icon: 'none'
+            })
+        }
+    },
+};
+
+</script>
+
+<style scoped></style>

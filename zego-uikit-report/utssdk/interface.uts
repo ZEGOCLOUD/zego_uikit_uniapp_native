@@ -1,0 +1,17 @@
+/**
+ * interface.uts
+ * uts插件接口定义文件，按规范定义接口文件可以在HBuilderX中更好的做到语法提示
+ */
+
+
+export type GetVersion = () => string;
+
+export type InitReporter = (appID : number, signOrToken : string, commonParams : UTSJSONObject) => void;
+
+export type UnInitReporter = () => void;
+
+export type ReportCustomEvent = (event : string, paramsMap : UTSJSONObject) => void;
+
+export type UpdateUserID = (userID: string) => void;
+
+export type UpdateCommonParams = (commonParams : UTSJSONObject) => void;

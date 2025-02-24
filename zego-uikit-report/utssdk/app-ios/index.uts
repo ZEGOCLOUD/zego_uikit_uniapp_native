@@ -1,0 +1,36 @@
+
+import { ReportUtil, USER_ID } from "ZegoUIKitReport";
+
+import { InitReporter, UnInitReporter, ReportCustomEvent, GetVersion, UpdateUserID, UpdateCommonParams } from '../interface.uts';
+
+
+export const getVersion: GetVersion = function (): string {
+    return ReportUtil.getVersion()
+}
+
+// - (BOOL)createWithAppID:(unsigned int)appID signOrToken:(NSString *)signOrToken commonParams:(NSDictionary *)commonParams;
+export const initReporter: InitReporter = function (appID: number, signOrToken: string, params: UTSJSONObject) {
+    ReportUtil.sharedInstance().create(withAppID = appID.toUInt32(), signOrToken = signOrToken, commonParams = params.toMap());
+}
+
+export const unInitReporter: UnInitReporter = function () {
+    ReportUtil.sharedInstance().destroy()
+}
+
+
+// - (void)reportEvent:(NSString *)event paramsDict:(NSDictionary *)paramsDict;
+export const reportCustomEvent: ReportCustomEvent = function (eventName: string, params: UTSJSONObject) {
+    ReportUtil.sharedInstance().reportEvent(eventName, paramsDict = params.toMap())
+}
+
+// - (void)updateCommonParams:(NSDictionary *)commonParams;
+export const updateUserID: UpdateUserID = function (userID: string) {
+    const params = {}
+    params[USER_ID] = userID
+    ReportUtil.sharedInstance().updateCommonParams(params.toMap())
+}
+
+// - (void)updateCommonParams:(NSDictionary *)commonParams;
+export const updateCommonParams: UpdateCommonParams = function (params: UTSJSONObject) {
+    ReportUtil.sharedInstance().updateCommonParams(params.toMap())
+}

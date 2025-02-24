@@ -1,0 +1,102 @@
+{
+    "pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+        {
+            "path": "pages/index/index",
+            "style": {
+                "navigationBarTitleText": "UIKits Example"
+            }
+        },
+        // {
+        //     "path": "pages/example/uikit/base-call",
+        //     "style": {
+        // "disableSwipeBack": true,
+        //         "navigationBarTitleText": "基础通话"
+        //     }
+        // },
+        {
+            "path": "pages/example/uikit/voice-call",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "语音通话"
+            }
+        },
+        {
+            "path": "pages/example/uikit/video-call",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "视频通话"
+            }
+        },
+        {
+            "path": "pages/example/uikit/custom-callview",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "自定义通话视图"
+            }
+        },
+        {
+            "path": "pages/example/uikit/hangup-comfirm",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "自定义挂断弹窗"
+            }
+        },
+        {
+            "path": "pages/example/uikit/custom-bottombar",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "自定义下方按钮"
+            }
+        },
+        {
+            "path": "pages/example/uikit/invite",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "邀请按钮"
+            }
+        },
+        {
+            "path": "uni_modules/zego-PrebuiltCall/pages/invitation/ZegoCallInvitationWaiting",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "等待接通"
+            }
+        },
+        {
+            "path": "uni_modules/zego-PrebuiltCall/pages/invitation/ZegoCallInvitationRoom",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "通话界面"
+            }
+        },
+        {
+            "path": "uni_modules/zego-PrebuiltCall/pages/invitation/ZegoCallInvitee",
+            "style": {
+                "disableSwipeBack": true,
+                "navigationBarTitleText": "收到呼叫"
+            }
+        },
+        {
+            "path": "pages/example/setting/debug-and-config",
+            "style": {
+                "navigationBarTitleText": "调试与配置"
+            }
+        }
+    ],
+    "globalStyle": {
+        "navigationBarTextStyle": "black",
+        "navigationBarTitleText": "uni-app",
+        "navigationBarBackgroundColor": "#F4F4F4",
+        "backgroundColor": "#F4F4F4"
+    },
+    "condition": { //模式配置，仅开发期间生效
+        "current": 0, //当前激活的模式(list 的索引项)
+        "list": [
+            {
+                "name": "", //模式名称
+                "path": "", //启动页面，必选
+                "query": "" //启动参数，在页面的onLoad函数里面得到
+            }
+        ]
+    }
+}

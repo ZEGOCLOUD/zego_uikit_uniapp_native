@@ -1,0 +1,525 @@
+<template>
+    <view class="container fill-parent">
+        <view class="fill-parent" @click="handleFullPageTouch">
+            <ZegoAudioVideoContainer class="audio-video-view-container fill-parent"
+                :audio-video-config="audioVideoViewConfig" :layout="layout" :showWaitingCallAcceptAudioVideoView="config.showWaitingCallAcceptAudioVideoView">
+                <template v-if="$slots.avatarView" #avatarView="{ userInfo }">
+                    <slot name="avatarView" :userInfo="userInfo"></slot>
+                </template>
+                <template v-if="$slots.callingWaitingView" #callingWaitingView="{ userInfo }">
+                    <slot name="callingWaitingView" :userInfo="userInfo"></slot>
+                </template>
+                <template v-if="$slots.audioVideoForeground" #audioVideoForeground="{ userInfo }">
+                    <slot name="audioVideoForeground" :userInfo="userInfo"></slot>
+                </template>
+                <template v-else #audioVideoForeground="{ userInfo }">
+                    <AudioVideoForegroundView :user-info="userInfo!"
+                        :show-camera-state-on-view="audioVideoViewConfig.showCameraStateOnView"
+                        :show-microphone-state-on-view="audioVideoViewConfig.showMicrophoneStateOnView"
+                        :show-user-name-on-view="audioVideoViewConfig.showUserNameOnView" />
+                </template>
+            </ZegoAudioVideoContainer>
+        </view>
+        <view class="foreground-container" eventPenetrationEnabled="true" pointer-events="none">
+            <ZegoPrebuiltForegroundView :is-duration-visible="isDurationVisible" />
+        </view>
+        <view class="prebuilt-foreground-container" eventPenetrationEnabled="true" pointer-events="none">
+            <slot name="prebuiltForegroundView" />
+        </view>
+        <ZegoBottomBar v-if="isBottomMenubarVisable" :user-i-d="userID" :menuBarButtonsMaxCount="bottomMenuMaxCount"
+            :menuBarButtons="bottomMenuButtons" :turnOnCameraWhenJoining="turnOnCameraWhenJoining"
+            :turnOnMicrophoneWhenJoining="turnOnMicrophoneWhenJoining" :useSpeakerWhenJoining="useSpeakerWhenJoining"
+            @hang-up="handleHangUp" @hang-up-confirmation="handleHangUpConfirmation" @more-press="handleMorePress"
+            @switch-camera="handleSwitchCamera" @touchstart="handleBottomBarTouch" @show-calling-invitation-list="handleShowCallingInvitationList" />
+        <template v-if="callingInvitationListVisilble">
+            <slot name="callingInvitationList" :invitationConfig="callingInvitationListConfig" :onClose="hideCallingInvitationList">
+                <CallingInvitationList :default-check="callingInvitationListConfig.defaultChecked" :user-list="callingInvitationListConfig.waitingSelectUsers" @close="hideCallingInvitationList" />
+            </slot>
+        </template>
+        <ZegoModal
+            v-model="showModal"
+            :title="modal.title"
+            :content="modal.content"
+            :cancel-text="modal.cancelText"
+            :confirm-text="modal.confirmText"
+            :show-cancel="modal.showCancel"
+            @confirm="modal.onConfirm"
+            @cancel="modal.onCancel"
+        />
+    </view>
+</template>
+
+<script lang="ts" setup>
+import { ref, onMounted, onUnmounted, reactive } from "vue"
+import { onUnload, onBackPress } from '@dcloudio/uni-app'
+
+import { Platform, zlogerror, zloginfo, zlogwarning, makeListenerID, ZegoUIKitUser, ZegoUIKitSignaling, UIKitReport } from '@/uni_modules/zego-UIKitCore'
+import ZegoUIKit, { ZegoAudioOutputDevice, ZegoUIKitScenario } from '@/uni_modules/zego-UIKitCore';
+
+import ZegoAudioVideoContainer from '@/uni_modules/zego-UIKitCore/components/audiovideocontainer/ZegoAudioVideoContainer.vue'
+import ZegoModal from '@/uni_modules/zego-UIKitCore/components/common/ZegoModal.vue'
+import { ZegoUIKitPrebuiltCallConfig } from '../config/ZegoUIKitPrebuiltCallConfig'
+import { Timer } from "../utils/Timer";
+import Permissions from '../utils/Permissions'
+import { DurationTracker } from '../utils/DurationTracker';
+import TextUtils from "@/uni_modules/zego-UIKitCore/utils/TextUtils"
+
+import ZegoBottomBar from './ZegoBottomBar.vue'
+import AudioVideoForegroundView from './AudioVideoForegroundView.vue'
+import ZegoPrebuiltForegroundView from './ZegoPrebuiltForegroundView.vue'
+import CallingInvitationList from './CallingInvitationList.vue'
+import { t } from "../lang"
+import { CallInvitationServiceImpl } from "../services/internal/CallInvitationServiceImpl";
+import { isFunction } from "@/uni_modules/zego-UIKitCore/utils/types";
+import { CallingInvitationListConfig } from "../config/defines";
+import { defaultCallingInvitationListConfig } from "../config/ZegoUIKitPrebuiltCallInvitationConfig";
+
+const TAG = '========== [ZegoUIKitPrebuiltCall] ==============='
+
+const LISTENER_ID = makeListenerID() // 生成回调ID
+
+
+const props = withDefaults(defineProps<{
+    appID: number,
+    appSign: string,
+    userID: string,
+    userName: string,
+    callID: string,
+    destroyOnExit?: boolean,
+    config: ZegoUIKitPrebuiltCallConfig,
+}>(), {
+    destroyOnExit: true,
+});
+
+type modelProps = {
+    title: string,
+    content?: string,
+    cancelText?: string,
+    confirmText?: string,
+    showCancel?: boolean,
+    onConfirm: () => void,
+    onCancel?: () => void,
+}
+
+
+const {
+    appID,
+    appSign,
+    userID,
+    userName,
+    callID,
+    config,
+} = props;
+
+const showModal = ref(false)
+const modal = ref<modelProps>({
+    title: '',
+    content: '',
+    cancelText: '',
+    confirmText: '',
+    showCancel: true,
+    onConfirm: () => { },
+    onCancel: () => { },
+})
+
+const isFrontCamera = ref(true)
+const turnOnCameraWhenJoining = ref(config.turnOnCameraWhenJoining ?? false)
+const turnOnMicrophoneWhenJoining = ref(config.turnOnMicrophoneWhenJoining ?? false)
+const useSpeakerWhenJoining = ref(config.useSpeakerWhenJoining ?? false)
+
+
+const audioVideoViewConfig = ref(config.audioVideoViewConfig ?? {})
+const layout = ref(config.layout ?? {})
+
+const {
+    buttons: bottomMenuButtons,
+    maxCount: bottomMenuMaxCount = 5,
+    hideAutomatically: hideBottomMenuAutomatically = true,
+    hideByClick: hideBottomMenuByClick = true,
+} = config.bottomMenuBarConfig ?? {}
+
+const isBottomMenubarVisable = ref(false)
+let hideBottomMenubarCountdown = 5
+
+const hideMenubarTimer = new Timer(elapsed => {
+    hideBottomMenubarCountdown--;
+    if (hideBottomMenubarCountdown <= 0) {
+        hideBottomMenubarCountdown = 5
+        if (hideBottomMenuAutomatically) {
+            isBottomMenubarVisable.value = false
+        }
+    }
+}, 1000)
+
+const durationConfig = config.durationConfig ?? {}
+const isDurationVisible = ref(durationConfig.showDuration ?? true)
+const callingInvitationListConfig = reactive<CallingInvitationListConfig>({
+    ...defaultCallingInvitationListConfig,
+})
+const callingInvitationListVisilble = ref(false)
+
+const timingTimer = new Timer(elapsed => {
+    DurationTracker.getInstance().advance()
+    if (durationConfig.onDurationUpdate) {
+        durationConfig.onDurationUpdate(DurationTracker.getInstance().currentDuration())
+    }
+}, 1000)
+
+const startCallTimingTimer = () => {
+    if (!isDurationVisible.value) {
+        return;
+    }
+    timingTimer.stop()
+    timingTimer.start()
+}
+const stopCallTimingTimer = () => {
+    timingTimer.stop()
+}
+
+
+function validateProps(props: any): [boolean, string | undefined] {
+    const requiredProps = ['appID', 'appSign', 'userID', 'callID'] as const;
+
+    for (const propName of requiredProps) {
+        const value = props[propName];
+        if (TextUtils.isEmpty(value.toString())) {
+            return [false, t("Tips.propEmpty", { prop: propName })];
+        }
+    }
+
+    return [true, undefined];
+}
+
+
+let hasDoneLeaveRoom = false
+let hasInit = false
+
+onMounted(async () => {
+    // 检测一下上面几个字段是否有传 TextUtils.isEmpty, 没有传就弹出警告
+    const [isValid, errorMessage] = validateProps(props);
+    if (!isValid) {
+        modal.value = {
+            title: t("CommonConfirmation.title"),
+            content: errorMessage,
+            showCancel: false,
+            confirmText: t("CommonConfirmation.confirmButtonName"),
+            onConfirm: () => {
+                uni.navigateBack()
+            },
+        };
+        showModal.value = true
+        return
+    }
+
+    if (Platform.isAndroid) {
+
+        let micAuth = false
+        // if (turnOnMicrophoneWhenJoining.value) {
+        micAuth = await Permissions.ensureAndroidPermission(Permissions.AuthInfo.Microphone)
+        // } else {
+        // micAuth = true
+        // }
+        let cameraAuth = false
+        // if (turnOnCameraWhenJoining.value) {
+        cameraAuth = await Permissions.ensureAndroidPermission(Permissions.AuthInfo.Camera)
+        // } else {
+        // cameraAuth = true
+        // }
+
+
+        if (!micAuth || !cameraAuth) {
+            zlogerror(TAG, 'Android Permissions', 'Microphone or Camera permission denied')
+            // 退出去
+            uni.navigateBack()
+            return
+        }
+    }
+
+    hasInit = true
+
+    if (props.config.onNetworkStatusChange) {
+        uni.onNetworkStatusChange(props.config.onNetworkStatusChange)
+    }
+
+    // 初始化
+    await ZegoUIKit.init(appID, appSign, ZegoUIKitScenario.StandardVideoCall)
+
+    ZegoUIKit.addOnOnlySelfInRoomListener(LISTENER_ID, { // ZegoOnlySelfInRoomListener
+        onOnlySelf() {
+            zlogwarning(TAG, 'onlySelfInRoomListener leaveRoom');
+            // 退出
+            // leaveRoom()
+            handleHangUp()
+        },
+    })
+    ZegoUIKit.addRoomStateChangedListener(LISTENER_ID, {
+        onRoomStateChanged(roomID, reason, errorCode, jsonObject) {
+            zloginfo(TAG, 'roomStateChangedListener onRoomStateChanged', roomID, reason, errorCode, jsonObject);
+        },
+    })
+    ZegoUIKit.addCameraStateListener(LISTENER_ID, { // ZegoCameraStateChangeListener
+        onCameraOn(uiKitUser, isOn) {
+            if (uiKitUser.userID === userID) {
+                turnOnCameraWhenJoining.value = isOn;
+            }
+        },
+    })
+    ZegoUIKit.addMicrophoneStateListener(LISTENER_ID, { // ZegoMicrophoneStateChangeListener
+        onMicrophoneOn(uiKitUser, isOn) {
+            if (uiKitUser.userID === userID) {
+                turnOnMicrophoneWhenJoining.value = isOn;
+            }
+        },
+    })
+    ZegoUIKit.addAudioOutputDeviceChangedListener(LISTENER_ID, { // ZegoAudioOutputDeviceChangedListener
+        onAudioOutputDeviceChanged(audioOutput) {
+            useSpeakerWhenJoining.value = audioOutput === ZegoAudioOutputDevice.Speaker;
+        },
+    })
+
+    const { endCallWhenInitiatorLeave } = ZegoUIKitSignaling.getInstance().getCallingConfig()
+    const invitationData = ZegoUIKitSignaling.getInstance().getCurrentInvitationData()
+    ZegoUIKit.addUserUpdateListener(LISTENER_ID, { // ZegoUserUpdateListener
+        onUserLeft(userList) {
+            if (
+                endCallWhenInitiatorLeave &&
+                userList.some(({ userID }) => userID === invitationData?.inviter?.userID)
+            ) {
+                zlogwarning(TAG, "userLeftListener inviter leaveRoom")
+                handleHangUp()
+            }
+        },
+    })
+
+
+    // 登录
+    ZegoUIKit.login(userID, userName);
+
+    if (config.videoConfig) {
+        // 配置了视频分辨率等, 优先使用 resolution
+        // TODO videoConfig.config 没有实现
+        ZegoUIKit.setPresetVideoConfig(config.videoConfig.resolution)
+    }
+
+    ZegoUIKit.setAudioOutputToSpeaker(useSpeakerWhenJoining.value)
+    ZegoUIKit.useFrontFacingCamera(isFrontCamera.value);
+    ZegoUIKit.openCamera(turnOnCameraWhenJoining.value)
+    ZegoUIKit.openMicrophone(turnOnMicrophoneWhenJoining.value)
+
+    // 进房
+    ZegoUIKit.joinRoom(callID, false, (errorCode) => {
+        zlogwarning(TAG, "joinRoom errorCode: " + errorCode)
+        if (errorCode === 0) {
+            // 启动计时器
+            startCallTimingTimer();
+            hideMenubarTimer.start();
+            isBottomMenubarVisable.value = true
+
+            // 启动推流, 这里的摄像头开关会触发推流
+            ZegoUIKit.turnMicrophoneOn(userID, turnOnMicrophoneWhenJoining.value)
+            ZegoUIKit.turnCameraOn(userID, turnOnCameraWhenJoining.value)
+        } else {
+            modal.value = {
+                title: t("ErrorConfirmation.title"),
+                content: t("Tips.startCallFail", { errorCode: errorCode }),
+                showCancel: false,
+                confirmText: t("ErrorConfirmation.confirmButtonName"),
+                onConfirm: async () => {
+                    await leaveRoom()
+                    uni.navigateBack()
+                },
+            };
+            showModal.value = true
+        }
+    })
+
+})
+
+async function leaveRoom() {
+    if (!hasInit || hasDoneLeaveRoom) {
+        return
+    }
+    hasDoneLeaveRoom = true
+    zloginfo(TAG, "start leaveRoom")
+    stopCallTimingTimer()
+    hideMenubarTimer.stop()
+
+    ZegoUIKit.removeOnOnlySelfInRoomListener(LISTENER_ID)
+    ZegoUIKit.removeCameraStateListener(LISTENER_ID)
+    ZegoUIKit.removeMicrophoneStateListener(LISTENER_ID)
+    ZegoUIKit.removeAudioOutputDeviceChangedListener(LISTENER_ID)
+    ZegoUIKit.removeUserUpdateListener(LISTENER_ID)
+    await ZegoUIKitSignaling.getInstance().endCall()
+    await ZegoUIKit.leaveRoom()
+
+
+    // 呼叫邀请嵌套的时候, 退出时不要反初始化, 交给开发者来调用 CallService的unInit
+    await ZegoUIKit.unInit()
+}
+
+onUnmounted(() => {
+    zlogwarning(TAG, 'onUnmounted ZegoUIKitPrebuiltCall')
+    if (props.config.onNetworkStatusChange) {
+        uni.offNetworkStatusChange(props.config.onNetworkStatusChange)
+    }
+
+    if (props.destroyOnExit) {
+        // 确定不用了, 要销毁
+        ZegoUIKitSignaling.destroy()
+        ZegoUIKit.destroy()
+    }
+})
+
+onBackPress((opt) => {
+    // 需要拦截返回, 否则没有弹窗
+    zlogwarning(TAG, 'onBackPress ZegoUIKitPrebuiltCall', opt.from)
+    if (hasInit && opt.from === 'backbutton') {
+        // 拦截返回按钮
+        handleHangUpConfirmation().then((leaveOrNot) => {
+            if (leaveOrNot) {
+                // leaveRoom()
+                handleHangUp()
+            }
+        })
+        // 必须同步返回
+        return true
+    }
+
+})
+
+onUnload(() => {
+    zlogwarning(TAG, 'onUnload ZegoUIKitPrebuiltCall')
+    // leaveRoom()
+})
+
+
+/************************** 按钮的事件 ***************************/
+let inLogout = false
+async function handleHangUp() {
+    zlogwarning(TAG, 'handleHangUp inLogout: ', inLogout)
+    if (inLogout) return
+    inLogout = true
+    try {
+        await leaveRoom()
+        UIKitReport.reportEvent('call/hangUp', {})
+        if (config.onHangUp) {
+            config.onHangUp(DurationTracker.getInstance().currentDuration())
+        } else {
+            uni.navigateBack()
+        }
+    } finally {
+        inLogout = false
+    }
+}
+async function handleHangUpConfirmation(): Promise<boolean> {
+    zlogwarning(TAG, 'handleHangUpConfirmation', config.onHangUpConfirmation)
+    if (config.onHangUpConfirmation) {
+        return config.onHangUpConfirmation();
+    }
+    return new Promise((resolve, reject) => {
+        const {
+            title = t("HangUpConfirmation.title"),
+            message = t("HangUpConfirmation.message"),
+            confirmButtonName = t("HangUpConfirmation.confirmButtonName"),
+            cancelButtonName = t("HangUpConfirmation.cancelButtonName"),
+        } = config.hangUpConfirmInfo || {};
+
+        modal.value = {
+            title: title,
+            content: message,
+            showCancel: true,
+            cancelText: cancelButtonName,
+            confirmText: confirmButtonName,
+            onConfirm: () => {
+                resolve(true)
+            },
+            onCancel: () => {
+                resolve(false)
+            }
+        };
+        showModal.value = true
+    });
+}
+function handleMorePress() {
+    // 未实现
+}
+function handleSwitchCamera() {
+    // 这是事后通知, 可以做点后处理
+}
+
+function handleFullPageTouch() {
+    zlogwarning(TAG, 'handleFullPageTouch')
+    hideBottomMenubarCountdown = 5;
+    if (isBottomMenubarVisable.value) {
+        if (hideBottomMenuByClick) {
+            isBottomMenubarVisable.value = false
+        }
+    } else {
+        isBottomMenubarVisable.value = true
+    }
+}
+
+
+function handleBottomBarTouch() {
+    // 重置倒计时
+    zlogwarning(TAG, 'handleBottomBarTouch')
+    hideBottomMenubarCountdown = 5;
+}
+
+const handleShowCallingInvitationList = () => {
+    const { onCallingInvitationListSheetDisplay } = CallInvitationServiceImpl.getInstance().getCallInvitationConfig() || {}
+    if (isFunction(onCallingInvitationListSheetDisplay)) {
+        const { defaultChecked, waitingSelectUsers } = onCallingInvitationListSheetDisplay!() || defaultCallingInvitationListConfig
+        callingInvitationListConfig.waitingSelectUsers = waitingSelectUsers
+        callingInvitationListConfig.defaultChecked = defaultChecked
+    }
+    callingInvitationListVisilble.value = true
+    isBottomMenubarVisable.value = false
+}
+
+const hideCallingInvitationList = () => {
+    callingInvitationListVisilble.value = false
+}
+
+
+</script>
+
+<style scoped>
+.container {
+    /* align-items: center; */
+    justify-content: center;
+    z-index: 0;
+}
+
+.fill-parent {
+    display: flex;
+    flex: 1;
+}
+
+.foreground-container {
+    flex: 1;
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    z-index: 11;
+}
+
+.prebuilt-foreground-container {
+    flex: 1;
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    z-index: 21;
+}
+
+.audio-video-view-container {
+    /* background-color: red; */
+    z-index: 1;
+}
+</style>

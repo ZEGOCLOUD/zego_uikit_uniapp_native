@@ -1,0 +1,190 @@
+{
+    "name" : "ZegoUIKitsExample",
+    "appid" : "__UNI__FAC0BCF",
+    "description" : "",
+    "versionName" : "1.1.0",
+    "versionCode" : 114,
+    "transformPx" : false,
+    "unpackage" : [ "zego-uikit-native", "zego-uikit-prebuilt-call" ],
+    /* 5+App特有相关 */
+    "app-plus" : {
+        "usingComponents" : true,
+        "nvueStyleCompiler" : "uni-app",
+        "compilerVersion" : 3,
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
+            "autoclose" : true,
+            "delay" : 0
+        },
+        /* 模块配置 */
+        "modules" : {
+            "Push" : {}
+        },
+        /* 应用发布信息 */
+        "distribute" : {
+            /* android打包配置 */
+            "android" : {
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.MOUNT_UNMOUNT_FILESYSTEMS\"/>",
+                    "<uses-permission android:name=\"android.permission.VIBRATE\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_LOGS\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+                    "<uses-permission android:name=\"android.permission.GET_ACCOUNTS\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
+                    "<uses-permission android:name=\"android.permission.FLASHLIGHT\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera\"/>",
+                    "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>",
+                    "<uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\"/>"
+                ],
+                "minSdkVersion" : 23,
+                "targetSdkVersion" : 33
+            },
+            /* ios打包配置 */
+            "ios" : {
+                "dSYMs" : false,
+                "privacyDescription" : {
+                    "NSCameraUsageDescription" : "用于视频通话",
+                    "NSMicrophoneUsageDescription" : "用于视频通话"
+                }
+            },
+            /* SDK配置 */
+            "sdkConfigs" : {
+                "ad" : {},
+                "push" : {}
+            },
+            "icons" : {
+                "android" : {
+                    "hdpi" : "static/icons/72x72.png",
+                    "xhdpi" : "static/icons/96x96.png",
+                    "xxhdpi" : "static/icons/144x144.png",
+                    "xxxhdpi" : "static/icons/192x192.png"
+                },
+                "ios" : {
+                    "appstore" : "static/icons/1024x1024.png",
+                    "ipad" : {
+                        "app" : "static/icons/76x76.png",
+                        "app@2x" : "static/icons/152x152.png",
+                        "notification" : "static/icons/20x20.png",
+                        "notification@2x" : "static/icons/40x40.png",
+                        "proapp@2x" : "static/icons/167x167.png",
+                        "settings" : "static/icons/29x29.png",
+                        "settings@2x" : "static/icons/58x58.png",
+                        "spotlight" : "static/icons/40x40.png",
+                        "spotlight@2x" : "static/icons/80x80.png"
+                    },
+                    "iphone" : {
+                        "app@2x" : "static/icons/120x120.png",
+                        "app@3x" : "static/icons/180x180.png",
+                        "notification@2x" : "static/icons/40x40.png",
+                        "notification@3x" : "static/icons/60x60.png",
+                        "settings@2x" : "static/icons/58x58.png",
+                        "settings@3x" : "static/icons/87x87.png",
+                        "spotlight@2x" : "static/icons/80x80.png",
+                        "spotlight@3x" : "static/icons/120x120.png"
+                    }
+                }
+            }
+        },
+        "nativePlugins" : {
+            "zego-ZegoExpressUniAppSDK" : {
+                "__plugin_info__" : {
+                    "name" : "ZEGO 即构实时音视频 SDK",
+                    "description" : "uni-app Zego Express 音视频 SDK 是一款实时的音视频互动服务产品，是即构音视频解决方案在 uni-app 上的SDK，为开发者提供稳定可靠的实时音视频服务。",
+                    "platforms" : "Android,iOS",
+                    "url" : "https://ext.dcloud.net.cn/plugin?id=3617",
+                    "android_package_name" : "",
+                    "ios_bundle_id" : "",
+                    "isCloud" : true,
+                    "bought" : 1,
+                    "pid" : "3617",
+                    "parameters" : {}
+                }
+            },
+            "zego-ZIMUniPlugin" : {
+                "__plugin_info__" : {
+                    "name" : "Zego ZIM 即时通讯 SDK",
+                    "description" : "Zego ZIM uni-app 原生插件",
+                    "platforms" : "Android,iOS",
+                    "url" : "https://ext.dcloud.net.cn/plugin?id=8601",
+                    "android_package_name" : "",
+                    "ios_bundle_id" : "",
+                    "isCloud" : true,
+                    "bought" : 1,
+                    "pid" : "8601",
+                    "parameters" : {}
+                }
+            },
+            "zego-ZPNsUniPlugin" : {
+                "com.vivo.push.app_id" : "",
+                "com.vivo.push.api_key" : "",
+                "__plugin_info__" : {
+                    "name" : "Zego ZPNs 离线推送 SDK",
+                    "description" : "Zego ZPNs uni-app 原生插件，需搭配 Zego ZIM 即时通讯 SDK 使用",
+                    "platforms" : "Android,iOS",
+                    "url" : "",
+                    "android_package_name" : "",
+                    "ios_bundle_id" : "",
+                    "isCloud" : false,
+                    "bought" : -1,
+                    "pid" : "",
+                    "parameters" : {
+                        "com.vivo.push.app_id" : {
+                            "des" : "VIVO 推送 app_id",
+                            "key" : "com.vivo.push.app_id",
+                            "value" : ""
+                        },
+                        "com.vivo.push.api_key" : {
+                            "des" : "VIVO 推送 api_key",
+                            "key" : "com.vivo.push.api_key",
+                            "value" : ""
+                        }
+                    }
+                }
+            }
+        }
+    },
+    /* 快应用特有相关 */
+    "quickapp" : {},
+    /* 小程序特有相关 */
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false
+        },
+        "usingComponents" : true
+    },
+    "mp-alipay" : {
+        "usingComponents" : true
+    },
+    "mp-baidu" : {
+        "usingComponents" : true
+    },
+    "mp-toutiao" : {
+        "usingComponents" : true
+    },
+    "uniStatistics" : {
+        "enable" : false
+    },
+    "h5" : {
+        "router" : {
+            "mode" : "hash",
+            "base" : "./"
+        },
+        "devServer" : {
+            "https" : true,
+            "port" : 8080,
+            "historyApiFallback" : true,
+            "host" : "0.0.0.0",
+            "disableHostCheck" : true,
+            "noInfo" : true
+        }
+    },
+    "vueVersion" : "3"
+}

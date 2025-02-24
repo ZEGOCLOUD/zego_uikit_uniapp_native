@@ -1,0 +1,10 @@
+{
+    "restartable": "rs",
+    "verbose": true,
+    "watch": [
+        "src"
+    ],
+    "exec": "pnpm run deploy:sync",
+    "delay": 1000,
+    "ext": "ts,vue,nvue"
+}

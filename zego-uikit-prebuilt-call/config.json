@@ -1,0 +1,25 @@
+{
+    "copyRules": [
+        {
+            "source": "src/assets",
+            "destination": "dist/assets",
+            "exclude": []
+        },
+        {
+            "source": "src/components",
+            "destination": "dist/components",
+            "exclude": [
+                "defines.ts"
+            ]
+        },
+        {
+            "source": "README.md",
+            "destination": "dist"
+        },
+        {
+            "source": "src/pages",
+            "destination": "dist/pages",
+            "exclude": []
+        }
+    ]
+}

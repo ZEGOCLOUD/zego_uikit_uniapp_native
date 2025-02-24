@@ -1,0 +1,234 @@
+<template>
+    <view class="container" v-if="isPageLoad && initPrarms">
+        <view class="content">
+            <view class="avatar-container">
+                <ZegoAudioFrame :userInfo="initPrarms.invitees[0]" :showSoundWave="false" />
+            </view>
+            <text class="user-name">{{ initPrarms.callName || initPrarms.invitees[0].userName ||
+                initPrarms.invitees[0].userID
+                }}</text>
+            <text class="calling">{{ t('Invite.calling') }}</text>
+        </view>
+        <view class="bottom-bar">
+            <ZegoCancelInvitationButton :invitationID="initPrarms.invitationID" :invitees="initPrarms.invitees" customData=""
+                :onPressed="cancelInvitationHandle" />
+        </view>
+    </view>
+</template>
+
+<script lang="ts" setup>
+
+import ZegoUIKit, { makeListenerID, Platform, ZegoUIKitSignaling, ZegoUIKitUser, zloginfo, zlogwarning } from '@/uni_modules/zego-UIKitCore';
+import ZegoAudioFrame from '@/uni_modules/zego-UIKitCore/components/audiovideo/ZegoAudioFrame.vue';
+import ZegoCancelInvitationButton from '@/uni_modules/zego-UIKitCore/components/invitation/ZegoCancelInvitationButton.vue';
+import { onBeforeUnmount, ref } from 'vue';
+
+import { onBackPress, onLoad } from '@dcloudio/uni-app';
+import { t } from "../../lang";
+import CallInvitationHelper from '../../services/internal/CallInvitationHelper';
+import Permissions from '../../utils/Permissions';
+import { Navigation } from '../../utils/Navigation';
+import { CallInvitationServiceImpl } from '../../services/internal/CallInvitationServiceImpl';
+import { isFunction } from "@/uni_modules/zego-UIKitCore/utils/types";
+import BellManage from '../../services/internal/BellManage';
+import { Ringtone } from '../../config/consts';
+
+const TAG = '[ZegoCallInvitationWaiting]'
+
+interface Props {
+    isVideoCall: boolean;
+    invitees: ZegoUIKitUser[];
+    inviter: ZegoUIKitUser;
+    invitationID: string; // 邀请ID
+    customData?: string; // 开发者的自定义数据
+    roomID: string; // RTC 房间ID, 对外的入参应该是 CallID
+    callName?: string;
+};
+const { outgoingCallRingtone ,onOutgoingCallCancelButtonPressed } = CallInvitationServiceImpl.getInstance().getCallInvitationConfig() || {}
+const initPrarms = ref<Props | null>(null)
+const isPageLoad = ref(false)
+
+const LISTENER_ID = makeListenerID() // 生成回调ID
+const bellSrc = outgoingCallRingtone || Ringtone.OUTGOING_CALL
+const bellManage = ref<BellManage>()
+
+onLoad(async (query) => {
+    initPrarms.value = Navigation.getParams(query)
+    zloginfo(TAG, 'onLoad params=', JSON.stringify(initPrarms.value))
+
+    if (initPrarms.value) {
+        zloginfo(TAG, 'onPageLoad')
+    } else {
+        zlogwarning(TAG, 'onPageLoad', 'initPrarms is null')
+        return
+    }
+
+    // 处理页面未加载完成 对方已拒绝 不会返回的情况
+    const invitationData = ZegoUIKitSignaling.getInstance().getCurrentInvitationData()
+    if (!invitationData) {
+        zlogwarning(TAG, 'onPageLoad', 'invitationData is null')
+        uni.navigateBack()
+        return
+    }
+
+    const isVideoCall = initPrarms.value?.isVideoCall
+
+    if (Platform.isAndroid && !(await Permissions.ensureAllPermissions([
+        Permissions.AuthInfo.Microphone,
+        isVideoCall ? Permissions.AuthInfo.Camera : Permissions.AuthInfo.None
+    ]))) {
+        uni.navigateBack()
+        return
+    }
+
+    bellManage.value = new BellManage(bellSrc, {
+        defaultUrl: Ringtone.OUTGOING_CALL,
+        autoplay: true,
+    });
+
+    // await ZegoUIKitPrebuiltCallService.reInit()
+
+    // ZegoUIKit.turnMicrophoneOn('', true)
+    // ZegoUIKit.turnCameraOn('', isVideoCall)
+    // ZegoUIKit.setAudioOutputToSpeaker(true)
+    // ZegoUIKit.startPreview()
+
+    isPageLoad.value = true
+
+    ZegoUIKitSignaling.getInstance().addInvitationListener(LISTENER_ID, {
+        onInvitationResponseTimeout() {
+            zlogwarning(TAG, 'onInvitationResponseTimeout')
+            // 超时了
+            cleanAndGoBack()
+        },
+
+        onInvitationRefused() {
+            zlogwarning(TAG, 'onInvitationRefused')
+            cleanAndGoBack()
+        },
+
+        onInvitationAccepted(invitee: ZegoUIKitUser) {
+            zloginfo(TAG, `onInvitationAccepted: ${invitee.userID}`);
+            if (!initPrarms.value) {
+                return
+            }
+            zloginfo(TAG, 'Jump to call room page.');
+            // BellManage.stopOutgoingSound();
+            CallInvitationHelper.getInstance().onInvitationAccept(
+                initPrarms.value.invitationID,
+                initPrarms.value.invitees,
+                initPrarms.value.roomID, // roomID
+                initPrarms.value.isVideoCall,
+                true, // redirect
+            );
+
+        },
+
+    })
+
+})
+
+onBeforeUnmount(()=>{
+    zloginfo(TAG, 'onBeforeUnmount')
+    bellManage.value?.destroy()
+    ZegoUIKitSignaling.getInstance().removeInvitationListener(LISTENER_ID)
+})
+
+
+onBackPress((opt) => {
+    // 需要拦截返回, 否则没有弹窗
+    zloginfo(TAG, 'onBackPress ZegoCallInvitationWaiting', opt.from)
+    if (opt.from === 'backbutton') {
+        cancelInvitation()
+        // 拦截返回按钮
+        // return true
+    }
+})
+
+const cancelInvitation = () => {
+    if (!initPrarms.value) {
+        return
+    }
+    zloginfo('[ZegoUIKitPrebuiltCallWaitingScreen] cancelInvitationHandle, Leave room on waiting page');
+    const invitationID = initPrarms.value.invitationID
+
+    if (isFunction(onOutgoingCallCancelButtonPressed)) {
+        onOutgoingCallCancelButtonPressed!()
+    }
+
+    ZegoUIKitSignaling.getInstance().cancelInvitation(invitationID);
+
+    // ZegoUIKitPrebuiltCallService.unInit()
+
+}
+
+let isBack = false
+
+const cleanAndGoBack = () => {
+    if (isBack) return
+    isBack = true
+    // ZegoUIKit.unInit();
+    // BellManage.stopOutgoingSound();
+    uni.navigateBack();
+}
+
+const cancelInvitationHandle = () => {
+    cancelInvitation()
+
+    cleanAndGoBack()
+}
+
+
+</script>
+
+<style scoped>
+.container {
+    display: flex;
+    flex: 1;
+    position: relative;
+    background-color: #4A4B4D;
+}
+
+.content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 100rpx;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-container {
+    height: 300rpx;
+    width: 300rpx;
+}
+
+.user-name {
+    font-size: 42rpx;
+    line-height: 60rpx;
+    margin-top: 10rpx;
+    margin-bottom: 45rpx;
+    color: #ffffff;
+}
+
+.calling {
+    font-size: 32rpx;
+    line-height: 43rpx;
+    color: #ffffff;
+    opacity: 0.7;
+}
+
+.bottom-bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 80rpx;
+}
+</style>

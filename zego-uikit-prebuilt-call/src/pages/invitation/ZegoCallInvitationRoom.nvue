@@ -1,0 +1,66 @@
+<template>
+    <ZegoUIKitPrebuiltCall v-if="initPrarms && callConfig" :appID="appInfo.appID" :appSign="appInfo.appSign"
+        :userID="localUser.userID" :userName="localUser.userName" :callID="initPrarms.roomID"
+        :config="callConfig" :destroyOnExit="false" :inviter="initPrarms.inviter" />
+</template>
+
+<script lang="ts" setup>
+import { Platform, ZegoUIKitUser, zloginfo } from '@/uni_modules/zego-UIKitCore';
+import { onLoad } from '@dcloudio/uni-app';
+import { ref } from 'vue';
+import ZegoUIKitPrebuiltCall from '../../components/ZegoUIKitPrebuiltCall.nvue';
+import { ZegoUIKitPrebuiltCallConfig } from '../../config/ZegoUIKitPrebuiltCallConfig';
+import { CallInvitationServiceImpl } from '../../services/internal/CallInvitationServiceImpl';
+import { Navigation } from '../../utils/Navigation';
+import Permissions from '../../utils/Permissions';
+
+const TAG = '[ZegoCallInvitationRoom]'
+
+interface Props {
+    isVideoCall: boolean;
+    invitees: ZegoUIKitUser[];
+    inviter: ZegoUIKitUser;
+    invitationID: string; // 邀请ID
+    roomID: string; // RTC 房间ID, 对外的入参应该是 CallID
+};
+
+const initPrarms = ref<Props>()
+const appInfo = ref()
+const callConfig = ref<ZegoUIKitPrebuiltCallConfig>()
+const localUser = ref();
+
+onLoad(async (query) => {
+    initPrarms.value = Navigation.getParams(query);
+    localUser.value = CallInvitationServiceImpl.getInstance().getLocalUser();
+    zloginfo(TAG, 'onLoad', JSON.stringify(initPrarms.value))
+
+    if (!initPrarms.value) {
+        return
+    }
+    if (Platform.isAndroid && !(await Permissions.ensureAllPermissions([
+        Permissions.AuthInfo.Microphone,
+        initPrarms.value.isVideoCall ? Permissions.AuthInfo.Camera : Permissions.AuthInfo.None
+    ]))) {
+        uni.navigateBack()
+        return
+    }
+
+    appInfo.value = CallInvitationServiceImpl.getInstance().getAppInfo()
+
+    const defaultConfig = initPrarms.value.isVideoCall ? ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall() : ZegoUIKitPrebuiltCallConfig.oneOnOneVoiceCall()
+
+    const customConfig = CallInvitationServiceImpl.getInstance().getCallConfig() || {} as ZegoUIKitPrebuiltCallConfig
+
+    const onHangUp = () => {
+        uni.navigateBack()
+    }
+    callConfig.value = {
+        ...defaultConfig,
+        ...customConfig,
+        onHangUp: customConfig?.onHangUp || onHangUp
+    }
+
+})
+
+</script>
+<style scoped></style>

@@ -1,0 +1,127 @@
+{
+  "id": "zego-UIKitCore",
+  "name": "@zegocloud/zego-uikit-uniapp-native",
+  "displayName": "ZEGO UIKitCore",
+  "version": "1.1.2",
+  "description": "ZegoUIKit 是一款低代码产品，提供预构建的、可直接使用的 UI 组件，如音频视频视图、相机按钮等。使用 ZegoUIKit 可以节省时间，快速构建功能。",
+  "keywords": [
+    "ZEGO",
+    "UIKit",
+    "Core"
+  ],
+  "main": "./src/index.ts",
+  "files": [
+    "*"
+  ],
+  "type": "module",
+  "scripts": {
+    "prebuild": "node ./scripts/prebuild.cjs",
+    "build": "npx tsc -d",
+    "postbuild": "node ./scripts/postbuild.cjs",
+    "watch": "nodemon",
+    "deploy": "node ./scripts/deploy.cjs",
+    "predeploy": "npm run build",
+    "deploy:link": "node ./scripts/deploy.cjs --link",
+    "predeploy:link": "npm run build",
+    "deploy:sync": "node ./scripts/deploy.cjs --sync",
+    "predeploy:sync": "npm run build",
+    "publish:beta": "cd ./dist && npm publish --tag beta --access public",
+    "publish:release": "cd ./dist && npm publish --access public"
+  },
+  "homepage": "https://zegocloud.com",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "author": "zegocloud",
+  "license": "ISC",
+  "repository": "",
+  "engines": {
+    "HBuilderX": "^3.1.0"
+  },
+  "dcloudext": {
+    "type": "component-vue",
+    "sale": {
+      "regular": {
+        "price": "0.00"
+      },
+      "sourcecode": {
+        "price": "0.00"
+      }
+    },
+    "contact": {
+      "qq": ""
+    },
+    "declaration": {
+      "ads": "",
+      "data": "",
+      "permissions": ""
+    },
+    "npmurl": ""
+  },
+  "uni_modules": {
+    "dependencies": [
+      "zego-ZegoExpressUniApp-JS",
+      "zego-UIKitReport"
+    ],
+    "encrypt": [],
+    "platforms": {
+      "cloud": {
+        "tcb": "n",
+        "aliyun": "n",
+        "alipay": "n"
+      },
+      "client": {
+        "Vue": {
+          "vue2": "n",
+          "vue3": "y"
+        },
+        "App": {
+          "app-vue": "y",
+          "app-nvue": "y",
+          "app-uvue": "n"
+        },
+        "H5-mobile": {
+          "Safari": "n",
+          "Android Browser": "n",
+          "微信浏览器(Android)": "n",
+          "QQ浏览器(Android)": "n"
+        },
+        "H5-pc": {
+          "Chrome": "n",
+          "IE": "n",
+          "Edge": "n",
+          "Firefox": "n",
+          "Safari": "n"
+        },
+        "小程序": {
+          "微信": "n",
+          "阿里": "n",
+          "百度": "n",
+          "字节跳动": "n",
+          "QQ": "n",
+          "钉钉": "n",
+          "快手": "n",
+          "飞书": "n",
+          "京东": "n"
+        },
+        "快应用": {
+          "华为": "n",
+          "联盟": "n"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.8",
+    "@types/node": "^20.12.13",
+    "@types/rsync": "^0.4.36",
+    "@vue/eslint-config-prettier": "^9.0.0",
+    "@vue/eslint-config-typescript": "^13.0.0",
+    "eslint": "^8.56.0",
+    "glob": "^11.0.0",
+    "rimraf": "^6.0.1",
+    "rsync": "^0.6.1",
+    "typescript": "^5.4.5",
+    "vue": "^3.4.27"
+  }
+}

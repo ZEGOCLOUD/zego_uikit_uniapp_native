@@ -1,0 +1,11 @@
+{
+    "restartable": "rs",
+    "verbose": true,
+    "watch": [
+        "zego-uikit-native/src",
+        "zego-uikit-prebuilt-call/src"
+    ],
+    "exec": "pnpm run build:all",
+    "delay": 3000,
+    "ext": "ts,vue,nvue"
+}

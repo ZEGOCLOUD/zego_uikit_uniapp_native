@@ -1,0 +1,9 @@
+{
+    "deploymentTarget": "13",
+    "dependencies-pods": [
+        {
+            "name": "ZegoUIKitReport",
+            "version": "0.2.10"
+        }
+    ]
+}

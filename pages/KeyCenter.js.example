@@ -1,0 +1,119 @@
+
+// Developers can get appID from admin console.
+// https://console.zego.im/dashboard
+// for example:
+//     const appID = 123456789;
+
+let appID = 0
+
+// Developers should customize a user ID.
+// for example:
+//     const userID = "zego_benjamin";
+let userID = ""
+// let userID = "uniapp_ios"
+
+// AppSign only meets simple authentication requirements.
+// If you need to upgrade to a more secure authentication method,
+// please refer to [Guide for upgrading the authentication mode from using the AppSign to Token](https://docs.zegocloud.com/faq/token_upgrade)
+// Developers can get AppSign from admin [console](https://console.zego.im/dashboard)
+// for example: "abcdefghijklmnopqrstuvwxyz0123456789abcdegfhijklmnopqrstuvwxyz01"
+// Note: Only valid for native apps.
+let appSign = ""
+
+// Developers can get token from admin console.
+// https://console.zego.im/dashboard
+// Note: The user ID used to generate the token needs to be the same as the userID filled in above!
+// for example:
+//     const token = "04AAAAAxxxxxxxxxxxxxx";
+let token = ""
+
+let callID = "04AAAAA"
+
+const XIAO_MI_APPID = "";
+const XIAO_MI_APPKEY = "";
+
+const VIVO_APPID = "";
+const VIVO_APPKEY = "";
+
+const OPPO_APPID = "";
+const OPPO_APPKEY = "";
+const OPPO_SECRET = "";
+
+
+const HUAWEI_APPID = "";
+
+const resourceID = "";
+
+const appType = 2
+
+const userIDKey = "storage_userID"
+
+function getAppID() {
+	return getApp().globalData?.appID || appID;
+}
+
+function getUserID() {
+	let _userID = uni.getStorageSync(userIDKey)
+	if (!_userID) {
+		_userID = Math.floor(Math.random() * 1000000).toString()
+		setUserID(_userID)
+	}
+	return _userID;
+}
+
+function getAppSign() {
+	return (getApp().globalData?.appSign || appSign);
+}
+
+function getToken() {
+	return (getApp().globalData?.token || token);
+}
+
+function getCallID() {
+	return getApp().globalData?.callID || callID;
+}
+
+function setCallID(data) {
+	getApp().globalData.callID = data;
+}
+
+function setAppID(data) {
+	getApp().globalData.appID = +data || appID;
+}
+
+function setUserID(data) {
+	uni.setStorageSync(userIDKey, data)
+}
+
+function setToken (data) {
+	getApp().globalData.token = data;
+}
+
+function setAppSign (data) {
+	getApp().globalData.appSign = data;
+}
+
+export default {
+	setAppID,
+	setUserID,
+	setToken,
+	getToken,
+	setAppSign,
+	getAppSign,
+	getAppID,
+	getUserID,
+	setCallID,
+	getCallID,
+	XIAO_MI_APPID,
+	XIAO_MI_APPKEY,
+	VIVO_APPID,
+	VIVO_APPKEY,
+	OPPO_APPID,
+	OPPO_APPKEY,
+	OPPO_SECRET,
+	HUAWEI_APPID,
+	resourceID,
+	appType,
+	streamID: 'uniapp_'+Date.now().toString(16)
+}
+

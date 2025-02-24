@@ -1,0 +1,383 @@
+<template>
+    <view>
+        <view class="zego-container">
+            <view class="zego-row-area-2">
+                <text class="zego-title-text">我的ID: {{ userID }}</text>
+                <text class="zego-title-text">我的Name: {{ userName }}</text>
+            </view>
+            <view class="zego-row-area-2">
+                <text class="zego-title-text">输入对方的UID</text>
+                <input class="zego-input" type="text" maxlength="-1" :value="inviteeID" @input="onInviteeIDChange" />
+            </view>
+            <view class="zego-row-area-2 invite-buttons">
+                <ZegoSendCallInvitationButton class="video-button" :type="ZegoInvitationType.VideoCall"
+                    :invitees="invitees" :timeout="30" :notification-config="notificationConfig" :onWillPressed="onWillPressed" :onPressed="onPressed">
+                    <!-- 拨打电话 -->
+                </ZegoSendCallInvitationButton>
+                <view class="separator" />
+                <ZegoSendCallInvitationButton class="voice-button" :type="ZegoInvitationType.VoiceCall" :timeout="30" :invitees="invitees" text="语音通话" :notification-config="notificationConfig" :onWillPressed="onWillPressed" :onPressed="onPressed" />
+            </view>
+            <view class="zego-config-view">
+                <view class="config-row-area">
+                    <text>显示拒绝按钮：</text>
+                    <switch :checked="showDeclineSwitch" @change="showDeclineChange" />
+                </view>
+                <view class="config-row-area">
+                    <text>因发起者离开而自动结束通话：</text>
+                    <switch :checked="endCallWhenInitiatorLeaveSwitch" @change="endCallWhenInitiatorLeaveChange" />
+                </view>
+                <view class="config-row-area">
+                    <view >来电铃声</view>
+                    <input class="input-class" :value="incomingRingtone" placeholder="设置来电铃声" @input="incomingRingtoneInput" />
+                    <text class="clear-icon" @click="clearIncomingRingtone">x</text>
+                </view>
+                <view class="config-row-area">
+                    <view >去电铃声</view>
+                    <input class="input-class" :value="outgoingRingtone"placeholder="设置去电铃声" @input="outgoingRingtoneInput" />
+                    <text class="clear-icon" @click="clearOutgoingRingtone">x</text>
+                </view>
+                <view class="config-row-area">
+                    <text>通话中邀请用户：</text>
+                    <switch :checked="canInvitingInCalling" @change="canInvitingInCallingChange" />
+                </view>
+                <view class="config-row-area">
+                    <text>仅发起者可以邀请用户：</text>
+                    <switch :checked="onlyInitiatorCanInvite" @change="onlyInitiatorCanInviteChange" />
+                </view>
+                <view class="config-row-area">
+                    <text>显示呼叫邀请窗口：</text>
+                    <switch :checked="showWaitingCallAcceptAudioVideoView" @change="showWaitingCallAcceptAudioVideoViewChange" />
+                </view>
+                <view class="config-row-area">
+                    <view >通话中邀请用户ID：</view>
+                    <input class="input-class" :value="callingInviteeID"placeholder="输入对方的UID" @input="callingInviteeIDChange" />
+                    <text class="clear-icon" @click="clearCallingInviteeID">x</text>
+                </view>
+            </view>
+        </view>
+    </view>
+</template>
+<script lang="ts" setup>
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { onHide, onBackPress, onUnload } from '@dcloudio/uni-app'
+import keyCenter from "@/pages/KeyCenter";
+import ZegoSendCallInvitationButton from "@/uni_modules/zego-PrebuiltCall/components/invitation/ZegoSendCallInvitationButton.vue"
+import { ZegoInvitationType, ZegoUIKitUser } from "@/uni_modules/zego-UIKitCore";
+import ZegoUIKitPrebuiltCallService from "@/uni_modules/zego-PrebuiltCall/services/ZegoUIKitPrebuiltCallService";
+import { ZegoUser } from "@/uni_modules/zego-ZegoExpressUniApp-JS/components/zego-ZegoExpressUniApp-JS/lib";
+
+const {
+    XIAO_MI_APPID,
+    XIAO_MI_APPKEY,
+    VIVO_APPID,
+    VIVO_APPKEY,
+    OPPO_APPID,
+    OPPO_APPKEY,
+    OPPO_SECRET,
+    HUAWEI_APPID,
+    appType,
+    resourceID,
+} = keyCenter
+const appID = keyCenter.getAppID();
+const appSign = keyCenter.getAppSign();
+const userID = keyCenter.getUserID();
+const userName = userID + '_Nick';
+
+const inviteeID = ref('')
+const showDeclineSwitch = ref(true)
+const endCallWhenInitiatorLeaveSwitch = ref(true)
+const incomingRingtone = ref('')
+const outgoingRingtone = ref('')
+const canInvitingInCalling = ref(true)
+const onlyInitiatorCanInvite = ref(false)
+const showWaitingCallAcceptAudioVideoView = ref(true)
+const callingInviteeID = ref('')
+const notificationConfig = ref({
+    resourceID
+})
+const canInvite = ref(true)
+let toastTimer: NodeJS.Timeout | null = null
+let busyNames: string[] = []
+let refuseNames: string[] = []
+
+const showToast = (title: string, timer = 200) => {
+    clearToastTimer()
+    toastTimer = setTimeout(() => {
+        uni.showToast({
+            title,
+            icon: 'none',
+        })
+    }, timer)
+}
+
+const clearToastTimer = () => {
+    toastTimer && clearTimeout(toastTimer)
+    toastTimer = null
+}
+
+onMounted(() => {
+    ZegoUIKitPrebuiltCallService.init(appID, appSign, userID, userName, {
+        canInvitingInCalling: canInvitingInCalling.value,
+        onlyInitiatorCanInvite: onlyInitiatorCanInvite.value,
+        showDeclineButton: showDeclineSwitch.value,
+        endCallWhenInitiatorLeave: endCallWhenInitiatorLeaveSwitch.value,
+        enableNotifyWhenAppRunningInBackgroundOrQuit: true,
+        offlinePushConfig: {
+            enableMiPush: true,
+            enableHWPush: true,
+            enableVivoPush: true,
+            enableOppoPush: true,
+            miAppID: XIAO_MI_APPID,
+            miAppKey: XIAO_MI_APPKEY,
+            oppoAppID: OPPO_APPID,
+            oppoAppSecret: OPPO_SECRET,
+            oppoAppKey: OPPO_APPKEY,
+            vivoAppID: VIVO_APPID,
+            vivoAppKey: VIVO_APPKEY,
+            hwAppID: HUAWEI_APPID,
+            appType,
+        },
+        callConfig: {
+            showWaitingCallAcceptAudioVideoView: showWaitingCallAcceptAudioVideoView.value
+        },
+        onIncomingCallDeclineButtonPressed() {
+            console.warn('onIncomingCallDeclineButtonPressed')
+        },
+        onIncomingCallAcceptButtonPressed() {
+            console.warn('onIncomingCallAcceptButtonPressed')
+        },
+        onIncomingCallReceived(callID: string, caller: ZegoUser, callType: number, callees: ZegoUser[]) {
+            console.warn('onIncomingCallReceived', JSON.stringify({callID, caller, callType, callees}))
+        },
+        onIncomingCallCanceled(callID: string, caller: ZegoUser) {
+            console.warn('onIncomingCallCanceled', JSON.stringify({callID, caller}))
+            showToast('呼叫已被对方取消')
+        },
+        onIncomingCallTimeout(callID: string, caller: ZegoUser) {
+            console.warn('onIncomingCallTimeout', JSON.stringify({callID, caller}))
+        },
+        onOutgoingCallCancelButtonPressed() {
+            console.warn('onOutgoingCallCancelButtonPressed')
+        },
+        onOutgoingCallAccepted(callID: string, callee: ZegoUser) {
+            console.warn('onOutgoingCallAccepted', JSON.stringify({callID, callee}))
+        },
+        onOutgoingCallRejectedCauseBusy(callID: string, callee: ZegoUser) {
+            console.warn('onOutgoingCallRejectedCauseBusy', JSON.stringify({callID, callee}))
+            busyNames.push(callee.userName)
+            showToast(busyNames.toString() + " 当前繁忙", 600)
+            setTimeout(() => {
+                busyNames = []
+            }, 600)
+        },
+        onOutgoingCallDeclined(callID: string, callee: ZegoUser) {
+            console.warn('onOutgoingCallDeclined', JSON.stringify({callID, callee}))
+            refuseNames.push(callee.userName)
+            showToast(refuseNames.toString() + " 拒绝通话邀请", 600)
+            setTimeout(() => {
+                refuseNames = []
+            }, 600)
+        },
+        onOutgoingCallTimeout(callID: string, callees: ZegoUser[]) {
+            console.warn('onOutgoingCallTimeout', JSON.stringify({callID, callees}))
+            const userNames = callees.map(callee => callee.userName).join(',')
+            showToast(`呼叫 ${userNames} 超时`)
+        },
+        onCallingInvitationListSheetDisplay() {
+            return {
+                waitingSelectUsers: callInvitees.value,
+                defaultChecked: true,
+            }
+        }
+    });
+})
+
+onBackPress(()=>{
+    ZegoUIKitPrebuiltCallService.unInit();
+})
+
+onUnload(() => {
+    uni.hideKeyboard()
+})
+
+onHide(() => {
+    uni.hideKeyboard()
+})
+
+const onInviteeIDChange = (e: any) => {
+    inviteeID.value = e.detail.value
+}
+
+const callingInviteeIDChange = (e: any) => {
+    callingInviteeID.value = e.detail.value
+}
+
+const clearCallingInviteeID = () => {
+    callingInviteeID.value = ''
+}
+
+const getInvitees = (id: string) => {
+    if (!id) return []
+    const _invitees = id.split(',')
+        .map((id: string) => {
+            return {
+                userID: id,
+                userName: `user_${id}`
+            }
+        })
+    return _invitees
+}
+
+const invitees = computed(() => {
+    return getInvitees(inviteeID.value)
+})
+
+const callInvitees = computed(() => {
+    return getInvitees(callingInviteeID.value)
+})
+
+const showDeclineChange = (e: any) => {
+    showDeclineSwitch.value = e.detail.value
+    ZegoUIKitPrebuiltCallService.setCallInvitationConfig({
+        showDeclineButton: showDeclineSwitch.value
+    })
+}
+
+const endCallWhenInitiatorLeaveChange = (e: any) => {
+    endCallWhenInitiatorLeaveSwitch.value = e.detail.value
+    ZegoUIKitPrebuiltCallService.setCallInvitationConfig({
+        endCallWhenInitiatorLeave: endCallWhenInitiatorLeaveSwitch.value
+    })
+}
+
+const setIncomingRingtone = (value: string) => {
+    incomingRingtone.value = value
+    ZegoUIKitPrebuiltCallService.setCallInvitationConfig({
+        incomingCallRingtone: value
+    })
+}
+
+const setOutgoingRingtone = (value: string) => {
+    outgoingRingtone.value = value
+    ZegoUIKitPrebuiltCallService.setCallInvitationConfig({
+        outgoingCallRingtone: value
+    })
+}
+
+const incomingRingtoneInput = (e: any) => {
+    setIncomingRingtone(e.detail.value)
+}
+
+const outgoingRingtoneInput = (e: any) => {
+    setOutgoingRingtone(e.detail.value)
+}
+
+const clearIncomingRingtone = () => {
+    setIncomingRingtone('')
+}
+
+const clearOutgoingRingtone = () => {
+    setOutgoingRingtone('')
+}
+
+const canInvitingInCallingChange = (e: any) => {
+    canInvitingInCalling.value = e.detail.value
+    ZegoUIKitPrebuiltCallService.setCallInvitationConfig({
+        canInvitingInCalling: canInvitingInCalling.value
+    })
+}
+
+const onlyInitiatorCanInviteChange = (e: any) => {
+    onlyInitiatorCanInvite.value = e.detail.value
+    ZegoUIKitPrebuiltCallService.setCallInvitationConfig({
+        onlyInitiatorCanInvite: onlyInitiatorCanInvite.value
+    })
+}
+
+const showWaitingCallAcceptAudioVideoViewChange = (e: any) => {
+    showWaitingCallAcceptAudioVideoView.value = e.detail.value
+    ZegoUIKitPrebuiltCallService.setCallInvitationConfig({
+        callConfig: {
+            showWaitingCallAcceptAudioVideoView: showWaitingCallAcceptAudioVideoView.value
+        },
+    })
+}
+
+const onWillPressed = async () => {
+    if (!canInvite.value) return false
+    canInvite.value = false
+    return true
+}
+
+const onPressed = (code: number, message: string) => {
+    if (code !== 0) {
+        showToast(message)
+    }
+    uni.hideKeyboard()
+    setTimeout(() => {
+        canInvite.value = true
+    }, 1000)
+}
+
+</script>
+
+<style scoped>
+.invite-buttons {
+    flex-direction: row;
+    align-items: center;
+}
+
+.separator {
+    width: 3rpx;
+    height: 60rpx;
+    background-color: rgb(59, 8, 8);
+    margin: 0 20rpx;
+}
+
+.video-button {
+    /* 重写样式 */
+    border: 1rpx solid rgb(247, 4, 4);
+    background-color: rgb(153, 217, 217);
+}
+
+.voice-button {
+    /* 重写样式 */
+    border: 1rpx solid rgb(198, 189, 189);
+    border-radius: 1000rpx;
+}
+
+.zego-config-view {
+    margin: 0 20rpx;
+}
+
+.config-row-area {
+    margin-top: 10px;
+    display: flex;
+    padding: 8px;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    background-color: #FFFFFF;
+}
+
+.input-class {
+    height: 28px;
+    line-height: 28px;
+    font-size: 15px;
+    padding: 0 10px;
+    flex: 1;
+    background-color: #FFFFFF;
+}
+
+.clear-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background-color: #999;
+    text-align: center;
+}
+</style>

@@ -1,0 +1,32 @@
+
+import ReportUtil from "im.zego.uikit.libuikitreport.ReportUtil";
+
+/* 引入 interface.uts 文件中定义的变量 */
+import { InitReporter, UnInitReporter, ReportCustomEvent, GetVersion, UpdateUserID, UpdateCommonParams } from '../interface.uts';
+
+
+export const getVersion: GetVersion = function (): string {
+    return ReportUtil.getVersion()
+}
+
+export const initReporter: InitReporter = function (appID: number, signOrToken: string, params: UTSJSONObject) {
+    ReportUtil.create(appID.toLong(), signOrToken, params.toMap());
+}
+
+export const unInitReporter: UnInitReporter = function () {
+    ReportUtil.destroy()
+}
+
+export const reportCustomEvent: ReportCustomEvent = function (eventName: string, params: UTSJSONObject) {
+    ReportUtil.reportEvent(eventName, params.toMap())
+}
+
+export const updateUserID: UpdateUserID = function (userID: string) {
+    const params = {}
+    params[ReportUtil.USER_ID] = userID
+    ReportUtil.updateCommonParams(params.toMap())
+}
+
+export const updateCommonParams: UpdateCommonParams = function(params : UTSJSONObject) {
+    ReportUtil.updateCommonParams(params.toMap())
+}

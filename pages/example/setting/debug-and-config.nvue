@@ -1,0 +1,83 @@
+<template>
+	<div class="zego-container">
+		<view class="zego-row-area-2">
+			<text class="zego-title-text">AppID</text>
+			<input class="zego-input" type="number" maxlength="-1" :value="appID" @input="bindAppIDChange" />
+		</view>
+		<view class="zego-row-area-2">
+			<text class="zego-title-text">UserID</text>
+			<input class="zego-input" maxlength="-1" :value="userID" @input="bindUserIDChange" />
+		</view>
+		<view class="zego-row-area-2">
+			<text class="zego-title-text">Token</text>
+			<input class="zego-input" maxlength="-1" :value="token" @input="bindTokenChange" />
+		</view>
+		<view class="zego-row-area-2">
+			<text class="zego-title-text">CallID</text>
+			<input class="zego-input" maxlength="-1" :value="callID" @input="bindCallIDChange" />
+		</view>
+		<text style="font-size: 28rpx;font-weight: bold;margin: 12rpx">Version</text>
+		<view class="zego-row-area">
+			<text class="zego-title-text">{{ nativeSdkVersion }}</text>
+		</view>
+		<view class="zego-row-area">
+			<text class="zego-title-text">{{ uniappSdkVersion }}</text>
+		</view>
+		<view class="zego-row-area">
+			<text class="zego-title-text">{{ demoVersion }}</text>
+		</view>
+	</div>
+</template>
+
+<script>
+	// import ZegoExpressEngine from '@/components/zego-ZegoExpressUniApp-JS/lib/ZegoExpressEngine'
+	import keyCenter from '@/pages/KeyCenter.js'
+	// import { pluginVersion } from '@/components/zego-ZegoExpressUniApp-JS/lib/index'
+	const pluginVersion = '1.0.0'
+	console.log(keyCenter)
+	export default {
+		data() {
+			return {
+				appID: keyCenter.getAppID(),
+				userID: keyCenter.getUserID(),
+				token: keyCenter.getToken(),
+				callID: keyCenter.getCallID(),
+				nativeSdkVersion: undefined,
+				uniappSdkVersion: undefined,
+				demoVersion: undefined,
+			}
+		},
+		async mounted() {
+			// this.nativeSdkVersion = "native SDK Version: " + await ZegoExpressEngine.getVersion();
+			this.uniappSdkVersion = "uni-app SDK Version: " + pluginVersion;
+			this.demoVersion = "Demo Version: " + plus.runtime.version;
+		},
+		onUnload(){
+			console.log('onUnload')
+		},
+		beforeUnmount(){
+			console.log('beforeUnmount')
+		},
+		unmounted(){
+			console.log('unmounted')
+		},	
+		methods: {
+			bindAppIDChange: function(e) {
+				keyCenter.setAppID(e.detail.value);
+			},
+			bindUserIDChange: function(e) {
+				keyCenter.setUserID(e.detail.value);
+			},
+			bindTokenChange: function(e) {
+				keyCenter.setToken(e.detail.value);
+			},
+			bindCallIDChange: function(e){
+				keyCenter.setCallID(e.detail.value);
+			}
+		}
+	}
+</script>
+
+<style>
+
+</style>

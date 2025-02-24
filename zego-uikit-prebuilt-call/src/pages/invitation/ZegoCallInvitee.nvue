@@ -1,0 +1,220 @@
+<template>
+    <view class="container" v-if="initParams">
+        <view class="user-box">
+            <view class="avatar-container">
+                <!-- <image class="default-avatar" :src="`https://api.multiavatar.com/${initParams?.inviter.userID}.svg?apikey=XqHm465NYsdLfb`"></image> -->
+                <ZegoAudioFrame v-if="userInfo" :userInfo="userInfo" :showSoundWave="false" />
+            </view>
+            <text class="user-name">{{ userName }}</text>
+            <text class="inviter-state">{{ t('Invite.incoming') }}</text>
+        </view>
+        <view class="bottom-bar">
+            <view class="button-view">
+                <ZegoRefuseInvitationButton v-if="showDeclineButton" class="refuse-button" ref="refuseButtonRef" :invitationID="initParams?.invitationID" :onPressed="onRefusePressed" />
+                <ZegoAcceptInvitationButton :invitationID="initParams?.invitationID" :onPressed="onAcceptPressed" :onFailure="onAcceptFailure" />
+            </view>
+        </view>
+    </view>
+</template>
+<script lang="ts" setup>
+import { ref, onBeforeUnmount, computed } from "vue";
+
+import { makeListenerID, ZegoUIKitSignaling, ZegoUIKitUser, zlogerror, zloginfo, zlogwarning, Platform, UIKitReport, getAppState } from '@/uni_modules/zego-UIKitCore';
+import ZegoRefuseInvitationButton from '@/uni_modules/zego-UIKitCore/components/invitation/ZegoRefuseInvitationButton.vue';
+import ZegoAcceptInvitationButton from '@/uni_modules/zego-UIKitCore/components/invitation/ZegoAcceptInvitationButton.vue';
+import ZegoAudioFrame from '@/uni_modules/zego-UIKitCore/components/audiovideo/ZegoAudioFrame.vue';
+import { onLoad, onBackPress, onShow } from '@dcloudio/uni-app';
+import { Navigation } from '../../utils/Navigation';
+import PageConfig from '../../services/internal/CallPageConfig';
+import { CallInvitationServiceImpl } from '../../services/internal/CallInvitationServiceImpl';
+import { isFunction } from "@/uni_modules/zego-UIKitCore/utils/types";
+import { t } from "../../lang";
+import BellManage from "../../services/internal/BellManage";
+import { Ringtone } from "../../config/consts";
+import { CallRespondAction } from "../../services/internal/CallState";
+
+interface Props {
+    invitationID: string; // 邀请ID
+    roomID: string; // 房间ID
+    inviter: ZegoUIKitUser; // 邀请者
+    isVideoCall: boolean;
+}
+const TAG = '[ZegoCallInvitee]';
+const LISTENER_ID = makeListenerID();
+const initParams = ref<Props | null>(null)
+const { showDeclineButton, incomingCallRingtone, onIncomingCallAcceptButtonPressed, onIncomingCallDeclineButtonPressed } = CallInvitationServiceImpl.getInstance().getCallInvitationConfig() || {}
+const bellSrc = incomingCallRingtone || Ringtone.INCOMING_CALL
+const bellManage = ref<BellManage>()
+const refuseButtonRef = ref<InstanceType<typeof ZegoRefuseInvitationButton>>()
+
+onLoad(async (query)=>{
+    initParams.value = Navigation.getParams(query);
+    zloginfo(TAG, 'onLoad', initParams.value);
+    // #ifdef APP-PLUS
+    const webView = plus.webview.currentWebview();
+    !showDeclineButton && webView.setStyle({
+        titleNView:{
+            autoBackButton: false
+        }
+    })
+    // #endif
+    bellManage.value = new BellManage(bellSrc, {
+        defaultUrl: Ringtone.INCOMING_CALL,
+        autoplay: true,
+    });
+    ZegoUIKitSignaling.getInstance().addInvitationListener(LISTENER_ID, {
+        onInvitationCanceled(){
+            zloginfo(TAG, 'onInvitationCanceled');
+            cleanAndGoBack();
+        },
+        onInvitationResponseTimeout() {
+            zloginfo(TAG, 'onInvitationResponseTimeout');
+            cleanAndGoBack();
+        },
+        onInvitationTimeout() {
+            zloginfo(TAG, 'onInvitationTimeout');
+            cleanAndGoBack();
+        }
+    });
+
+    const { state } = getAppState()
+    UIKitReport.reportEvent('call/displayNotification', {
+        call_id: initParams.value?.invitationID,
+        app_state: state,
+    })
+})
+
+onBeforeUnmount(()=> {
+    zloginfo(TAG, 'onBeforeUnmount');
+    bellManage.value?.destroy();
+    ZegoUIKitSignaling.getInstance().removeInvitationListener(LISTENER_ID);
+})
+
+onShow(() => {
+    // 处理ios从后台到前台的响铃问题
+    if (Platform.isIos) {
+        bellManage.value?.play()
+    }
+})
+
+onBackPress((opt) => {
+    // 点击按钮返回需拒绝邀请
+    zlogwarning(TAG, 'onBackPress');
+    if (opt.from === 'backbutton') {
+        refuseButtonRef.value?.onButtonPress()
+        return true
+    }
+
+})
+
+const userInfo = computed(()=>{
+    return initParams.value?.inviter
+})
+
+const userName = computed(()=>{
+    return userInfo.value?.userName || userInfo.value?.userID
+})
+
+const onRefusePressed = () => {
+    if (isFunction(onIncomingCallDeclineButtonPressed)) {
+        onIncomingCallDeclineButtonPressed!()
+    }
+    const { incomingCallResponseReport } = CallInvitationServiceImpl.getInstance()
+    const { invitationID = '' } = initParams.value || {}
+    incomingCallResponseReport(invitationID, CallRespondAction.Refuse)
+    cleanAndGoBack()
+}
+
+const onAcceptPressed = () => {
+    zloginfo(TAG, 'onAcceptPressed');
+    if (isFunction(onIncomingCallAcceptButtonPressed)) {
+        onIncomingCallAcceptButtonPressed!()
+    }
+    const { incomingCallResponseReport } = CallInvitationServiceImpl.getInstance()
+    const { invitationID = '' } = initParams.value || {}
+    incomingCallResponseReport(invitationID, CallRespondAction.Accept)
+    Navigation.redirectTo(PageConfig.PAGES.ZegoUIKitPrebuiltCallInCallScreen, {
+        roomID: initParams.value?.roomID,
+        isVideoCall: initParams.value?.isVideoCall,
+        invitationID: initParams.value?.invitationID,
+        inviter: initParams.value?.inviter,
+    });
+}
+const onAcceptFailure = (code: number, message: string) => {
+    zlogerror(TAG, 'onAcceptFailure', code, message)
+}
+
+let isBack = false
+const cleanAndGoBack = () => {
+    if (isBack) return
+    isBack = true
+    // ZegoUIKit.unInit();
+    bellManage.value?.destroy();
+    uni.navigateBack();
+}
+</script>
+<style scoped>
+.container {
+    display: flex;
+    flex: 1;
+    position: relative;
+    background-color: #4A4B4D;
+}
+
+.user-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 100rpx;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-container {
+    height: 300rpx;
+    width: 300rpx;
+}
+
+.default-avatar {
+    color: #557BFF;
+    line-height: 52rpx;
+    font-size: 58rpx;
+    font-weight: 600;
+}
+
+.user-name {
+    font-size: 42rpx;
+    line-height: 60rpx;
+    margin-top: 10rpx;
+    margin-bottom: 45rpx;
+    color: #ffffff;
+}
+.inviter-state {
+    font-size: 32rpx;
+    line-height: 43rpx;
+    color: #ffffff;
+    opacity: 0.7;
+}
+
+.bottom-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 80rpx;
+}
+
+.button-view {
+    flex-direction: row;
+}
+
+.refuse-button {
+    margin-right: 300rpx;
+}
+</style>
